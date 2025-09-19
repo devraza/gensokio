@@ -50,7 +50,7 @@
             libxkbcommon wayland # To use the wayland feature
             udev alsa-lib vulkan-loader
 
-            clang pkg-config
+            clang pkg-config mold
           ];
         };
       }
