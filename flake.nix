@@ -42,6 +42,8 @@
             pkgs.alsa-lib
             pkgs.libxkbcommon
             pkgs.wayland
+
+            pkgs.xorg.libX11 pkgs.xorg.libXcursor pkgs.xorg.libXi pkgs.xorg.libXrandr
           ]}"'';
           buildInputs = with pkgs; [
             xorg.libX11 xorg.libXcursor xorg.libXi xorg.libXrandr # To use the x11 feature

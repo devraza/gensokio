@@ -40,11 +40,10 @@ fn player_movement(
     let Ok((mut player, mut transform)) = player_query.single_mut() else { panic!() };
 
     let mut rotation_factor = 0.;
-    let mut movement_factor = 1.;
 
     // Initialise the movement distance variable (to bring it into scope)
     let mut movement_distance: f32 = 0.;
-    movement_distance = movement_factor * 1. * time.delta_secs();
+    movement_distance = time.delta_secs();
 
     if keys.pressed(KeyCode::ArrowUp) {
         transform.translation.y += 5.;
