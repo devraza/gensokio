@@ -1,16 +1,14 @@
 use bevy::{
-    core_pipeline::tonemapping::Tonemapping, prelude::*, render::camera::Viewport, window::*,
+    prelude::*, render::camera::Viewport,
 };
 
 #[derive(Component)]
-struct Player_Position {
-    x: f32,
-    y: f32,
-}
+struct Bullet;
 
 #[derive(Component)]
 struct Player {
-    velocity: Vec2,
+    attack_speed: f32,
+    cooldown: Timer,
 }
 
 fn main() {
@@ -23,18 +21,72 @@ fn main() {
             ..default()
         }),))
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, (player_movement, confine_player))
+        .add_systems(FixedUpdate, (player_movement, confine_player, bullet_handling))
+        .add_systems(Update, shoot_bullet)
         .run();
+}
+
+fn bullet_handling(
+    mut commands: Commands,
+    mut bullet_query: Query<(Entity, &mut Transform), With<Bullet>>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+    time: Res<Time>,
+) {
+    let Ok((camera, cam_transform)) = camera_query.single() else { panic!() };
+    let cam_pos = cam_transform.translation();
+
+    if let Some(viewport_size) = camera.logical_viewport_size() {
+        let half_height = viewport_size.y / 2.0;
+        let top_bound = cam_pos.y + half_height;
+
+        for (entity, mut transform) in bullet_query.iter_mut() {
+            transform.translation.y += 1500. * time.delta_secs();
+
+            if transform.translation.y > top_bound {
+                commands.entity(entity).despawn();
+            }
+        }
+    }
+}
+
+fn shoot_bullet(
+    mut commands: Commands,
+    keys: Res<ButtonInput<KeyCode>>,
+    asset_server: Res<AssetServer>,
+    mut player_query: Query<(&mut Player, &Transform), With<Player>>,
+    time: Res<Time>,
+) {
+    if let Ok((mut player, transform)) = player_query.single_mut() {
+        player.cooldown.tick(time.delta());
+
+        if keys.pressed(KeyCode::KeyZ) && player.cooldown.finished() {
+            let bullet_handle = asset_server.load("bullet-kunai.png");
+
+            commands.spawn((
+                Sprite::from_image(bullet_handle.clone()),
+                Transform::from_xyz(transform.translation.x - 20., transform.translation.y + 60., 0.),
+                Bullet,
+            ));
+            commands.spawn((
+                Sprite::from_image(bullet_handle.clone()),
+                Transform::from_xyz(transform.translation.x + 20., transform.translation.y + 60., 0.),
+                Bullet,
+            ));
+
+
+            let attack_speed = player.attack_speed;
+            player.cooldown.set_duration(std::time::Duration::from_secs_f32(1.0 / attack_speed));
+            player.cooldown.reset();
+        }
+    }
 }
 
 // Define the player movement system
 fn player_movement(
-    time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<(&mut Player, &mut Transform), With<Player>>,
-    camera_query: Query<&mut Transform, (Without<Player>, With<Camera>)>,
+    mut player_query: Query<&mut Transform, With<Player>>,
 ) {
-    let Ok((mut player, mut transform)) = player_query.single_mut() else {
+    let Ok(mut transform) = player_query.single_mut() else {
         panic!()
     };
 
@@ -62,12 +114,9 @@ fn player_movement(
 }
 
 fn confine_player(
-    windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mut player_q: Query<&mut Transform, With<Player>>,
 ) {
-    let window = windows.single();
-
     let Ok((camera, cam_transform)) = camera_q.single() else {
         panic!()
     };
@@ -96,8 +145,6 @@ fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     window: Single<&Window>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let window_size = window.resolution.physical_size().as_vec2();
     let sprite_handle = asset_server.load("reimu.png");
@@ -125,7 +172,8 @@ fn setup(
     commands.spawn((
         Sprite::from_image(sprite_handle),
         Player {
-            velocity: Vec2::ZERO,
+            attack_speed: 20.,
+            cooldown: Timer::from_seconds(1.0 / 20., TimerMode::Repeating),
         },
     ));
 }
