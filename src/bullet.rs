@@ -42,7 +42,7 @@ pub fn shoot_bullet(
         player.cooldown.tick(time.delta());
 
         if keys.pressed(KeyCode::KeyZ) && player.cooldown.finished() {
-            let bullet_handle = asset_server.load("bullet-kunai.png");
+            let bullet_handle = asset_server.load("textures/bullet-kunai.png");
 
             commands.spawn((
                 Sprite::from_image(bullet_handle.clone()),

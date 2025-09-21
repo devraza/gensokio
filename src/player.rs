@@ -14,7 +14,7 @@ use crate::network::*;
 
 // Spawn player outside of initial setup
 pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let sprite_handle = asset_server.load("reimu.png");
+    let sprite_handle = asset_server.load("textures/reimu.png");
 
     commands
         .spawn((
