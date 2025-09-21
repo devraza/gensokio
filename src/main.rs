@@ -4,23 +4,16 @@ use bevy::{
 use bevy_ggrs::*;
 use bevy_matchbox::prelude::*;
 
-type Config = bevy_ggrs::GgrsConfig<u8, PeerId>;
+pub type Config = bevy_ggrs::GgrsConfig<u8, PeerId>;
 
-const INPUT_UP: u8 = 1 << 0;
-const INPUT_DOWN: u8 = 1 << 1;
-const INPUT_LEFT: u8 = 1 << 2;
-const INPUT_RIGHT: u8 = 1 << 3;
-const INPUT_FIRE: u8 = 1 << 4;
+// Load modules from other files
+mod player;
+mod network;
+use crate::player::*;
+use crate::network::*;
 
 #[derive(Component)]
 struct Bullet;
-
-#[derive(Component)]
-struct Player {
-    attack_speed: f32,
-    handle: usize,
-    cooldown: Timer,
-}
 
 fn main() {
     App::new()
@@ -99,31 +92,6 @@ fn shoot_bullet(
     }
 }
 
-// Spawn player outside of initial setup
-fn spawn_player(mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
-    let sprite_handle = asset_server.load("reimu.png");
-
-    commands.spawn((
-        Sprite::from_image(sprite_handle.clone()),
-        Player {
-            attack_speed: 20.,
-            handle: 0,
-            cooldown: Timer::from_seconds(1.0 / 20., TimerMode::Repeating),
-        },
-    )).add_rollback();
-
-    commands.spawn((
-        Sprite::from_image(sprite_handle.clone()),
-        Player {
-            attack_speed: 20.,
-            handle: 1,
-            cooldown: Timer::from_seconds(1.0 / 20., TimerMode::Repeating),
-        },
-    )).add_rollback();
-}
-
 fn read_local_inputs(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
@@ -190,48 +158,10 @@ fn wait_for_players(mut commands: Commands, mut socket: ResMut<MatchboxSocket>) 
     commands.insert_resource(bevy_ggrs::Session::P2P(ggrs_session));
 }
 
-
 fn start_matchbox_socket(mut commands: Commands) {
     let room_url = "ws://127.0.0.1:3536/gensokio?next=2";
     info!("connecting to matchbox server: {room_url}");
     commands.insert_resource(MatchboxSocket::new_unreliable(room_url));
-}
-
-// Define the player movement system
-fn player_movement(
-    keys: Res<ButtonInput<KeyCode>>,
-    inputs: Res<PlayerInputs<Config>>,
-    mut players: Query<(&mut Transform, &Player)>,
-) {
-    for (mut transform, player) in &mut players {
-        let (input, _) = inputs[player.handle];
-
-        let mut translation = Vec2::ZERO;
-
-        let movement_speed = 6.;
-
-        if input & INPUT_UP != 0 {
-            translation.y += 1.;
-        }
-        if input & INPUT_DOWN != 0 {
-            translation.y -= 1.;
-        }
-        if input & INPUT_LEFT != 0 {
-            translation.x -= 1.;
-        }
-        if input & INPUT_RIGHT != 0 {
-            translation.x += 1.;
-        }
-
-        // Focus mode
-        if keys.pressed(KeyCode::ShiftLeft) {
-            translation *= Vec2::splat(0.6);
-        }
-
-        let movement_delta = (translation * movement_speed).extend(0.);
-
-        transform.translation += movement_delta;
-    }
 }
 
 fn confine_player(
