@@ -1,16 +1,14 @@
-use bevy::{
-    prelude::*, render::camera::Viewport, platform::collections::HashMap,
-};
+use bevy::{platform::collections::HashMap, prelude::*, render::camera::Viewport};
 use bevy_ggrs::*;
 use bevy_matchbox::prelude::*;
 
 pub type Config = bevy_ggrs::GgrsConfig<u8, PeerId>;
 
 // Load modules from other files
-mod player;
 mod network;
-use crate::player::*;
+mod player;
 use crate::network::*;
+use crate::player::*;
 
 #[derive(Component)]
 struct Bullet;
@@ -33,7 +31,6 @@ fn main() {
         .add_systems(Update, (shoot_bullet, wait_for_players))
         .add_systems(ReadInputs, read_local_inputs)
         .add_systems(GgrsSchedule, player_movement)
-
         .run();
 }
 
@@ -43,7 +40,9 @@ fn bullet_handling(
     camera_query: Query<(&Camera, &GlobalTransform)>,
     time: Res<Time>,
 ) {
-    let Ok((camera, cam_transform)) = camera_query.single() else { panic!() };
+    let Ok((camera, cam_transform)) = camera_query.single() else {
+        panic!()
+    };
     let cam_pos = cam_transform.translation();
 
     if let Some(viewport_size) = camera.logical_viewport_size() {
@@ -75,18 +74,27 @@ fn shoot_bullet(
 
             commands.spawn((
                 Sprite::from_image(bullet_handle.clone()),
-                Transform::from_xyz(transform.translation.x - 20., transform.translation.y + 60., 0.),
+                Transform::from_xyz(
+                    transform.translation.x - 20.,
+                    transform.translation.y + 60.,
+                    0.,
+                ),
                 Bullet,
             ));
             commands.spawn((
                 Sprite::from_image(bullet_handle.clone()),
-                Transform::from_xyz(transform.translation.x + 20., transform.translation.y + 60., 0.),
+                Transform::from_xyz(
+                    transform.translation.x + 20.,
+                    transform.translation.y + 60.,
+                    0.,
+                ),
                 Bullet,
             ));
 
-
             let attack_speed = player.attack_speed;
-            player.cooldown.set_duration(std::time::Duration::from_secs_f32(1.0 / attack_speed));
+            player
+                .cooldown
+                .set_duration(std::time::Duration::from_secs_f32(1.0 / attack_speed));
             player.cooldown.reset();
         }
     }
@@ -173,28 +181,25 @@ fn confine_player(
     };
 
     for (mut transform, _) in &mut players {
-    if let Some(viewport_size) = camera.logical_viewport_size() {
-        let half_width = viewport_size.x / 2.0;
-        let half_height = viewport_size.y / 2.0;
+        if let Some(viewport_size) = camera.logical_viewport_size() {
+            let half_width = viewport_size.x / 2.0;
+            let half_height = viewport_size.y / 2.0;
 
-        let cam_pos = cam_transform.translation();
+            let cam_pos = cam_transform.translation();
 
-        let left_bound = cam_pos.x - half_width;
-        let right_bound = cam_pos.x + half_width;
-        let bottom_bound = cam_pos.y - half_height;
-        let top_bound = cam_pos.y + half_height;
+            let left_bound = cam_pos.x - half_width;
+            let right_bound = cam_pos.x + half_width;
+            let bottom_bound = cam_pos.y - half_height;
+            let top_bound = cam_pos.y + half_height;
 
-        transform.translation.x = transform.translation.x.clamp(left_bound, right_bound);
-        transform.translation.y = transform.translation.y.clamp(bottom_bound, top_bound);
-    }
+            transform.translation.x = transform.translation.x.clamp(left_bound, right_bound);
+            transform.translation.y = transform.translation.y.clamp(bottom_bound, top_bound);
+        }
     }
 }
 
 // Bevy engine setup
-fn setup(
-    mut commands: Commands,
-    window: Single<&Window>,
-) {
+fn setup(mut commands: Commands, window: Single<&Window>) {
     let window_size = window.resolution.physical_size().as_vec2();
 
     commands.spawn((
@@ -205,10 +210,7 @@ fn setup(
                     x: 200,
                     y: ((window_size.y - 768.) / 2.) as u32,
                 },
-                physical_size: UVec2 {
-                    x: 512,
-                    y: 768,
-                },
+                physical_size: UVec2 { x: 512, y: 768 },
                 ..default()
             }),
             clear_color: ClearColorConfig::Custom(Color::hsl(0., 0., 0.1)),

@@ -1,8 +1,5 @@
-use bevy::{
-    prelude::*, render::camera::Viewport, platform::collections::HashMap,
-};
+use bevy::prelude::*;
 use bevy_ggrs::*;
-use bevy_matchbox::prelude::*;
 
 #[derive(Component)]
 pub struct Player {
@@ -12,34 +9,35 @@ pub struct Player {
 }
 
 // Load modules from the crate
-use crate::network::*;
 use crate::Config;
+use crate::network::*;
 
 // Spawn player outside of initial setup
-pub fn spawn_player(mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
     let sprite_handle = asset_server.load("reimu.png");
 
-    commands.spawn((
-        Sprite::from_image(sprite_handle.clone()),
-        Player {
-            attack_speed: 20.,
-            handle: 0,
-            cooldown: Timer::from_seconds(1.0 / 20., TimerMode::Repeating),
-        },
-    )).add_rollback();
+    commands
+        .spawn((
+            Sprite::from_image(sprite_handle.clone()),
+            Player {
+                attack_speed: 20.,
+                handle: 0,
+                cooldown: Timer::from_seconds(1.0 / 20., TimerMode::Repeating),
+            },
+        ))
+        .add_rollback();
 
-    commands.spawn((
-        Sprite::from_image(sprite_handle.clone()),
-        Player {
-            attack_speed: 20.,
-            handle: 1,
-            cooldown: Timer::from_seconds(1.0 / 20., TimerMode::Repeating),
-        },
-    )).add_rollback();
+    commands
+        .spawn((
+            Sprite::from_image(sprite_handle.clone()),
+            Player {
+                attack_speed: 20.,
+                handle: 1,
+                cooldown: Timer::from_seconds(1.0 / 20., TimerMode::Repeating),
+            },
+        ))
+        .add_rollback();
 }
-
 
 // Define the player movement system
 pub fn player_movement(
