@@ -1,4 +1,4 @@
-use bevy::{platform::collections::HashMap, prelude::*, render::camera::Viewport};
+use bevy::{prelude::*, render::camera::Viewport};
 use bevy_ggrs::*;
 use bevy_matchbox::prelude::*;
 
@@ -7,11 +7,10 @@ pub type Config = bevy_ggrs::GgrsConfig<u8, PeerId>;
 // Load modules from other files
 mod network;
 mod player;
+mod bullet;
 use crate::network::*;
 use crate::player::*;
-
-#[derive(Component)]
-struct Bullet;
+use crate::bullet::*;
 
 fn main() {
     App::new()
@@ -32,170 +31,6 @@ fn main() {
         .add_systems(ReadInputs, read_local_inputs)
         .add_systems(GgrsSchedule, player_movement)
         .run();
-}
-
-fn bullet_handling(
-    mut commands: Commands,
-    mut bullet_query: Query<(Entity, &mut Transform), With<Bullet>>,
-    camera_query: Query<(&Camera, &GlobalTransform)>,
-    time: Res<Time>,
-) {
-    let Ok((camera, cam_transform)) = camera_query.single() else {
-        panic!()
-    };
-    let cam_pos = cam_transform.translation();
-
-    if let Some(viewport_size) = camera.logical_viewport_size() {
-        let half_height = viewport_size.y / 2.0;
-        let top_bound = cam_pos.y + half_height;
-
-        for (entity, mut transform) in bullet_query.iter_mut() {
-            transform.translation.y += 1500. * time.delta_secs();
-
-            if transform.translation.y > top_bound {
-                commands.entity(entity).despawn();
-            }
-        }
-    }
-}
-
-fn shoot_bullet(
-    mut commands: Commands,
-    keys: Res<ButtonInput<KeyCode>>,
-    asset_server: Res<AssetServer>,
-    mut player_query: Query<(&mut Player, &Transform), With<Player>>,
-    time: Res<Time>,
-) {
-    if let Ok((mut player, transform)) = player_query.single_mut() {
-        player.cooldown.tick(time.delta());
-
-        if keys.pressed(KeyCode::KeyZ) && player.cooldown.finished() {
-            let bullet_handle = asset_server.load("bullet-kunai.png");
-
-            commands.spawn((
-                Sprite::from_image(bullet_handle.clone()),
-                Transform::from_xyz(
-                    transform.translation.x - 20.,
-                    transform.translation.y + 60.,
-                    0.,
-                ),
-                Bullet,
-            ));
-            commands.spawn((
-                Sprite::from_image(bullet_handle.clone()),
-                Transform::from_xyz(
-                    transform.translation.x + 20.,
-                    transform.translation.y + 60.,
-                    0.,
-                ),
-                Bullet,
-            ));
-
-            let attack_speed = player.attack_speed;
-            player
-                .cooldown
-                .set_duration(std::time::Duration::from_secs_f32(1.0 / attack_speed));
-            player.cooldown.reset();
-        }
-    }
-}
-
-fn read_local_inputs(
-    mut commands: Commands,
-    keys: Res<ButtonInput<KeyCode>>,
-    local_players: Res<LocalPlayers>,
-) {
-    let mut local_inputs = HashMap::new();
-
-    for handle in &local_players.0 {
-        let mut input = 0u8;
-
-        if keys.pressed(KeyCode::ArrowUp) {
-            input |= INPUT_UP;
-        }
-        if keys.pressed(KeyCode::ArrowDown) {
-            input |= INPUT_DOWN;
-        }
-        if keys.pressed(KeyCode::ArrowLeft) {
-            input |= INPUT_LEFT
-        }
-        if keys.pressed(KeyCode::ArrowRight) {
-            input |= INPUT_RIGHT;
-        }
-        if keys.pressed(KeyCode::KeyZ) {
-            input |= INPUT_FIRE;
-        }
-
-        local_inputs.insert(*handle, input);
-    }
-
-    commands.insert_resource(LocalInputs::<Config>(local_inputs));
-}
-
-fn wait_for_players(mut commands: Commands, mut socket: ResMut<MatchboxSocket>) {
-    if socket.get_channel(0).is_err() {
-        return;
-    }
-
-    socket.update_peers();
-    let players = socket.players();
-
-    let num_players = 2;
-    if players.len() < num_players {
-        return;
-    }
-
-    info!("All peers have joined, going in-game");
-
-    let mut session_builder = ggrs::SessionBuilder::<Config>::new()
-        .with_num_players(num_players)
-        .with_input_delay(2);
-
-    for (i, player) in players.into_iter().enumerate() {
-        session_builder = session_builder
-            .add_player(player, i)
-            .expect("failed to add player");
-    }
-
-    let channel = socket.take_channel(0).unwrap();
-
-    let ggrs_session = session_builder
-        .start_p2p_session(channel)
-        .expect("failed to start session");
-
-    commands.insert_resource(bevy_ggrs::Session::P2P(ggrs_session));
-}
-
-fn start_matchbox_socket(mut commands: Commands) {
-    let room_url = "ws://127.0.0.1:3536/gensokio?next=2";
-    info!("connecting to matchbox server: {room_url}");
-    commands.insert_resource(MatchboxSocket::new_unreliable(room_url));
-}
-
-fn confine_player(
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-    mut players: Query<(&mut Transform, &Player)>,
-) {
-    let Ok((camera, cam_transform)) = camera_q.single() else {
-        panic!()
-    };
-
-    for (mut transform, _) in &mut players {
-        if let Some(viewport_size) = camera.logical_viewport_size() {
-            let half_width = viewport_size.x / 2.0;
-            let half_height = viewport_size.y / 2.0;
-
-            let cam_pos = cam_transform.translation();
-
-            let left_bound = cam_pos.x - half_width;
-            let right_bound = cam_pos.x + half_width;
-            let bottom_bound = cam_pos.y - half_height;
-            let top_bound = cam_pos.y + half_height;
-
-            transform.translation.x = transform.translation.x.clamp(left_bound, right_bound);
-            transform.translation.y = transform.translation.y.clamp(bottom_bound, top_bound);
-        }
-    }
 }
 
 // Bevy engine setup
